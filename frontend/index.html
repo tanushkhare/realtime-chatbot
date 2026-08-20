@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chatbot & Q&A Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-slate-950">
+
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-8 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="h-3 w-3 rounded-full bg-cyan-500 animate-ping"></div>
+            <span class="text-xl font-bold tracking-tight text-cyan-400">Conversational AI Engine</span>
+        </div>
+        <span class="text-xs text-slate-400 font-mono bg-slate-800 px-3 py-1 rounded-full border border-slate-700">Flagship Module 03</span>
+    </header>
+
+    <nav class="bg-slate-900 border-b border-slate-800 px-8 py-3 flex space-x-6 text-sm font-medium">
+        <button onclick="switchTab('chat')" id="nav-chat" class="text-cyan-400 border-b-2 border-cyan-400 pb-1 transition">Live Chat Agent</button>
+        <button onclick="switchTab('memory')" id="nav-memory" class="text-slate-400 hover:text-slate-200 pb-1 transition">Session State</button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="text-slate-400 hover:text-slate-200 pb-1 transition">API Gateway</button>
+    </nav>
+
+    <div id="page-chat" class="page-content">
+        <main class="max-w-4xl mx-auto w-full p-8 my-auto">
+            <div class="bg-slate-900/80 border border-slate-800 p-8 rounded-2xl shadow-2xl backdrop-blur-xl">
+                <h1 class="text-3xl font-extrabold mb-2 text-white">Real-Time Chat Session</h1>
+                <p class="text-slate-400 mb-8">Interact with the conversational pipeline maintaining persistent session memory tracking.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="sessionId" class="block text-sm font-medium text-slate-300 mb-1">Session ID</label>
+                        <input type="text" id="sessionId" value="session_alpha_01" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition">
+                    </div>
+
+                    <div>
+                        <label for="messageInput" class="block text-sm font-medium text-slate-300 mb-1">Message</label>
+                        <textarea id="messageInput" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-inner placeholder-slate-600" placeholder="Type your query here..."></textarea>
+                    </div>
+                    
+                    <button id="sendBtn" onclick="sendChatMessage()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3.5 px-6 rounded-xl transition shadow-lg shadow-cyan-500/10 active:scale-[0.99] flex justify-center items-center space-x-2">
+                        <span>Send Message</span>
+                    </button>
+                </div>
+
+                <div id="resultBox" class="mt-8 pt-6 border-t border-slate-800 hidden">
+                    <h3 class="text-lg font-semibold text-cyan-400 mb-4">Agent Response Output</h3>
+                    
+                    <div class="bg-slate-950 p-6 rounded-xl border border-slate-800 mb-4 shadow-inner">
+                        <p id="resReply" class="text-sm text-slate-200 leading-relaxed">--</p>
+                    </div>
+
+                    <div class="flex justify-between text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span>Active Session: <strong id="resSession" class="text-cyan-450 text-cyan-400">--</strong></span>
+                        <span>Total Tracked Turn Length: <strong id="resLength" class="text-emerald-400">0</strong></span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="page-memory" class="page-content hidden max-w-4xl mx-auto w-full p-8 my-auto">
+        <div class="bg-slate-900/80 border border-slate-800 p-8 rounded-2xl shadow-2xl">
+            <h2 class="text-2xl font-bold text-cyan-400 mb-4">Session Memory Buffer</h2>
+            <p class="text-slate-400">Persistent conversational states and vector context windows are tracked here.</p>
+        </div>
+    </div>
+
+    <div id="page-settings" class="page-content hidden max-w-4xl mx-auto w-full p-8 my-auto">
+        <div class="bg-slate-900/80 border border-slate-800 p-8 rounded-2xl shadow-2xl">
+            <h2 class="text-2xl font-bold text-cyan-400 mb-4">Chatbot Gateway Configuration</h2>
+            <p class="text-slate-400">Endpoint target: <code class="bg-slate-950 px-2 py-1 rounded text-cyan-300">http://127.0.0.1:8000/api/chat</code></p>
+        </div>
+    </div>
+
+    <footer class="text-center py-6 text-xs text-slate-500 border-t border-slate-900">
+        Projects Workspace &bull; Flagship Modules Suite &copy; 2026
+    </footer>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`page-${tabName}`).classList.remove('hidden');
+            
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.className = "text-slate-400 hover:text-slate-200 pb-1 transition";
+            });
+            document.getElementById(`nav-${tabName}`).className = "text-cyan-400 border-b-2 border-cyan-400 pb-1 transition";
+        }
+
+        async function sendChatMessage() {
+            const sessionId = document.getElementById('sessionId').value;
+            const message = document.getElementById('messageInput').value;
+            const btn = document.getElementById('sendBtn');
+            
+            if (!message.trim()) {
+                alert('Please enter a message text before sending.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Transmitting...`;
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, message: message })
+                });
+                
+                if (!response.ok) throw new Error('Chat API processing failed.');
+
+                const data = await response.json();
+                
+                document.getElementById('resReply').innerText = data.response;
+                document.getElementById('resSession').innerText = data.session_id;
+                document.getElementById('resLength').innerText = data.history_length;
+                
+                document.getElementById('resultBox').style.display = 'block';
+            } catch (error) {
+                alert('Connection error: Ensure FastAPI is actively running on port 8000.');
+                console.error(error);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Send Message';
+            }
+        }
+    </script>
+</body>
+</html>
