@@ -1,12 +1,12 @@
-from fastapi import FastAPI, HTTPException
+﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Dict
+from backend.app.routers import chat_router
+import uvicorn
 
 app = FastAPI(
-    title="Vector RAG Q&A System API",
-    version="1.0.0",
-    description="Real-time chat and document retrieval backend."
+    title="Real-Time Asynchronous Chatbot API",
+    description="WebSocket streaming session manager, conversational memory, and async message dispatcher.",
+    version="1.0.0"
 )
 
 app.add_middleware(
@@ -17,36 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage for chat sessions
-chat_sessions: Dict[str, List[Dict[str, str]]] = {}
+app.include_router(chat_router.router)
 
-class ChatRequest(BaseModel):
-    session_id: str = Field(..., description="Unique identifier for the chat session")
-    message: str = Field(..., description="The user message to send to the chatbot")
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "realtime-chatbot"}
 
-class ChatResponse(BaseModel):
-    session_id: str
-    response: str
-    history_length: int
-
-@app.get("/")
-def read_root():
-    return {"message": "Vector RAG Q&A System Backend is running successfully!"}
-
-@app.post("/api/chat", response_model=ChatResponse)
-def chat_endpoint(payload: ChatRequest):
-    if not payload.message.strip():
-        raise HTTPException(status_code=400, detail="Message cannot be empty.")
-    
-    if payload.session_id not in chat_sessions:
-        chat_sessions[payload.session_id] = []
-    
-    history = chat_sessions[payload.session_id]
-    reply = f"Echo/Response to: '{payload.message}'. (Processed with context length {len(history)})"
-    history.append({"user": payload.message, "bot": reply})
-    
-    return {
-        "session_id": payload.session_id,
-        "response": reply,
-        "history_length": len(history)
-    }
+if __name__ == "__main__":
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
