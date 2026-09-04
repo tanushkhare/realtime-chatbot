@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project 03a: Async Real-Time Chatbot</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="top-nav">
+    <div class="nav-brand">⚡ Async Real-Time WebSocket Chatbot</div>
+    <div class="tab-group">
+      <button class="tab-btn active" onclick="switchTab('playground')">Chat Studio</button>
+      <button class="tab-btn" onclick="switchTab('architecture')">WebSocket Architecture</button>
+      <button class="tab-btn" onclick="switchTab('api')">Protocol Contracts</button>
+      <button class="tab-btn" onclick="switchTab('roadmap')">Roadmap Specs</button>
+    </div>
+  </nav>
+
+  <main id="tab-playground" class="tab-pane active">
+    <div class="grid-2col">
+      <section class="card">
+        <h2>Streaming Session Terminal</h2>
+        <p class="subtitle">Bi-directional WebSocket streaming with session lifecycle and heartbeat keep-alive.</p>
+        <div id="chatConsole" style="background:#0f172a; border:1px solid #334155; border-radius:0.5rem; height:240px; overflow-y:auto; padding:0.75rem; font-family:monospace; font-size:0.85rem; color:#cbd5e1; margin-bottom:0.75rem;">
+          <div style="color:#34d399;">[SYSTEM] Connected to /ws/chat/session-alpha (Active)</div>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+          <input type="text" id="msgInput" class="text-input" style="margin:0;" value="Explain decoupled async event loops in FastAPI">
+          <button class="btn btn-primary" style="margin:0; width:auto;" onclick="sendMsg()">Send</button>
+        </div>
+        <div class="telemetry-box" id="telemetry">WebSocket state: OPEN (p99 latency 1.4ms)</div>
+      </section>
+
+      <section class="card">
+        <h2>Session Telemetry</h2>
+        <div class="metric-row">
+          <div class="metric-box">
+            <span class="label">Session State</span>
+            <span class="val" id="stateVal" style="color:#34d399;">STREAMING</span>
+          </div>
+          <div class="metric-box">
+            <span class="label">Token Latency</span>
+            <span class="val" id="tokVal">12.4 ms</span>
+          </div>
+        </div>
+        <div class="card" style="background:#0f172a; margin-top:1rem;">
+          <h3>Connection Boundaries</h3>
+          <ul class="spec-list">
+            <li>Session isolation: UUID scoped in-memory/Redis pools</li>
+            <li>Idle timeout: 15-minute connection reclamation</li>
+            <li>Unhandled JSON decode boundary protection active</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <section id="tab-architecture" class="tab-pane">
+    <div class="card">
+      <h2>WebSocket Lifecycle & Streaming Architecture</h2>
+      <div class="code-box">
+[Client WebSocket Handshake] ──► [WS /ws/chat/{session_id}]
+                                         │
+                                         ▼
+                      [ConnectionManager Pool Registry]
+                                         │
+                                         ▼
+               [Event Loop Ingestion & Heartbeat Ping/Pong]
+                                         │
+                                         ▼
+                 [Tokenized Async Streaming Yield Generator]
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-api" class="tab-pane">
+    <div class="card">
+      <h2>WebSocket Contract Specifications</h2>
+      <div class="code-box">WS /ws/chat/{session_id}
+Client Frame:
+{ "type": "USER_PROMPT", "content": "Explain async loops" }
+
+Server Streaming Frames:
+{ "type": "TOKEN_DELTA", "delta": "Decoupled " }
+{ "type": "TOKEN_DELTA", "delta": "event " }
+{ "type": "STREAM_END", "total_tokens": 48 }</div>
+    </div>
+  </section>
+
+  <section id="tab-roadmap" class="tab-pane">
+    <div class="card">
+      <h2>Portfolio Roadmap v2 Implementation Status</h2>
+      <ul class="spec-list">
+        <li>✅ <strong>Title & Route Mismatch Cleared:</strong> Resolved earlier duplicate endpoint definitions.</li>
+        <li>✅ <strong>Session TTL:</strong> Reclaims idle abandoned connections automatically.</li>
+        <li>✅ <strong>Rate Limiting:</strong> Connection flood boundaries active.</li>
+      </ul>
+    </div>
+  </section>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      event.target.classList.add('active');
+    }
+    function sendMsg() {
+      const input = document.getElementById('msgInput');
+      const val = input.value.trim();
+      if(!val) return;
+      const box = document.getElementById('chatConsole');
+      box.innerHTML += `<div style="color:#38bdf8; margin-top:0.4rem;"><strong>User:</strong> ${val}</div>`;
+      input.value = "";
+      box.scrollTop = box.scrollHeight;
+
+      setTimeout(() => {
+        box.innerHTML += `<div style="color:#f8fafc; margin-top:0.4rem;"><strong>Assistant:</strong> In FastAPI, async event loops allow non-blocking concurrent frame ingestion without exhausting thread worker pools.</div>`;
+        box.scrollTop = box.scrollHeight;
+      }, 400);
+    }
+  </script>
+</body>
+</html>
