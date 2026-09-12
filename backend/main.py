@@ -4,8 +4,8 @@ from backend.app.routers import chat_router
 import uvicorn
 
 app = FastAPI(
-    title="Real-Time Asynchronous Chatbot API",
-    description="WebSocket streaming session manager, conversational memory, and async message dispatcher.",
+    title="Real-Time WebSocket Chatbot & Messaging Engine",
+    description="Sub-10ms asynchronous communication hub with room management and malformed JSON frame isolation.",
     version="1.0.0"
 )
 

@@ -9,21 +9,27 @@ def test_health():
     assert res.status_code == 200
     assert res.json()["status"] == "healthy"
 
-def test_send_message_and_history():
-    session = "test_session_99"
+def test_http_message_post_and_room_stats():
     payload = {
-        "session_id": session,
-        "user_id": "test_user",
-        "message": "Hello AI assistant!"
+        "room_id": "test-chat-room",
+        "sender": "TestUser",
+        "message": "Hello world from PyTest suite"
     }
     res = client.post("/api/v1/chat/message", json=payload)
     assert res.status_code == 200
     data = res.json()
-    assert data["session_id"] == session
-    assert len(data["reply"]) > 5
+    assert "MSG-" in data["message_id"]
+    assert data["sender"] == "TestUser"
 
-    # Check history
-    hist_res = client.get(f"/api/v1/chat/history/{session}")
-    assert hist_res.status_code == 200
-    hist_data = hist_res.json()
-    assert hist_data["total_messages"] >= 2
+    # Room stats check
+    stats_res = client.get("/api/v1/chat/rooms/test-chat-room")
+    assert stats_res.status_code == 200
+    stats = stats_res.json()
+    assert stats["persisted_messages"] >= 1
+
+def test_websocket_malformed_json_guardrail():
+    with client.websocket_connect("/api/v1/chat/ws/test-ws-channel") as ws:
+        ws.send_text("MALFORMED_NON_JSON_PAYLOAD")
+        reply = ws.receive_json()
+        assert "error" in reply
+        assert reply["error"] == "MALFORMED_JSON_FRAME"

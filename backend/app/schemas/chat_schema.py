@@ -1,20 +1,21 @@
 ﻿from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class ChatMessagePayload(BaseModel):
-    session_id: str = Field(..., description="Unique conversation session ID")
-    user_id: str = Field(..., description="Client user principal")
-    message: str = Field(..., min_length=1, description="Message string")
+    room_id: str = Field(default="general-room")
+    sender: str = Field(..., min_length=1, description="Sender username or handle")
+    message: str = Field(..., min_length=1, description="Message text payload")
 
-class ChatResponse(BaseModel):
-    session_id: str
-    reply: str
-    tokens_generated: int
-    latency_ms: float
+class ChatRoomStatus(BaseModel):
+    room_id: str
+    active_peers: int
+    persisted_messages: int
+    status: str
+
+class ChatMessageRecord(BaseModel):
+    message_id: str
+    room_id: str
+    sender: str
+    message: str
     timestamp: str
-
-class SessionHistoryResponse(BaseModel):
-    session_id: str
-    total_messages: int
-    messages: List[Dict[str, Any]]

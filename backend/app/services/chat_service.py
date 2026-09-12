@@ -1,57 +1,62 @@
-﻿import asyncio
-import time
+﻿import json
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Any
+from fastapi import WebSocket
 
-class RealTimeChatEngine:
+class ResilientChatConnectionManager:
     def __init__(self):
-        self.sessions: Dict[str, List[Dict[str, Any]]] = {}
+        # Room tracking: room_id -> list of active WebSockets
+        self.rooms: Dict[str, List[WebSocket]] = {}
+        # History tracking: room_id -> list of serialized message records
+        self.room_history: Dict[str, List[Dict[str, Any]]] = {}
 
-    def get_session_history(self, session_id: str) -> List[Dict[str, Any]]:
-        return self.sessions.get(session_id, [])
+    async def connect(self, room_id: str, websocket: WebSocket):
+        await websocket.accept()
+        if room_id not in self.rooms:
+            self.rooms[room_id] = []
+            self.room_history[room_id] = []
+        self.rooms[room_id].append(websocket)
 
-    async def generate_response(self, session_id: str, user_id: str, message: str) -> Dict[str, Any]:
-        start = time.perf_counter()
-        
-        if session_id not in self.sessions:
-            self.sessions[session_id] = []
-            
-        # Append user message
-        user_msg = {
-            "role": "user",
-            "user_id": user_id,
-            "text": message,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        self.sessions[session_id].append(user_msg)
+        # Replay room history to the newly connected peer for session recovery
+        if self.room_history[room_id]:
+            await websocket.send_text(json.dumps({
+                "type": "CHAT_HISTORY_RECOVERY",
+                "room_id": room_id,
+                "messages": self.room_history[room_id]
+            }))
 
-        await asyncio.sleep(0.02) # Async non-blocking generation simulation
-        
-        # Heuristic contextual assistant generation
-        msg_lower = message.lower()
-        if "hello" in msg_lower or "hi" in msg_lower:
-            reply = "Hello! I am your real-time asynchronous AI assistant. How can I assist you with your systems engineering or architecture questions today?"
-        elif "status" in msg_lower or "health" in msg_lower:
-            reply = "All backend microservice nodes and WebSocket connection pools are currently operational at sub-15ms latency."
-        else:
-            reply = f"Acknowledged query regarding '{message}'. Non-blocking asynchronous token dispatch completed successfully."
+    def disconnect(self, room_id: str, websocket: WebSocket):
+        if room_id in self.rooms and websocket in self.rooms[room_id]:
+            self.rooms[room_id].remove(websocket)
+            if not self.rooms[room_id]:
+                del self.rooms[room_id]
 
-        ai_msg = {
-            "role": "assistant",
-            "user_id": "ai_agent",
-            "text": reply,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        self.sessions[session_id].append(ai_msg)
+    async def broadcast(self, room_id: str, sender_ws: Optional[WebSocket], message_record: Dict[str, Any]):
+        if room_id not in self.room_history:
+            self.room_history[room_id] = []
+        self.room_history[room_id].append(message_record)
 
-        elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
-        
+        payload = json.dumps({
+            "type": "CHAT_MESSAGE_BROADCAST",
+            "data": message_record
+        })
+
+        if room_id in self.rooms:
+            for peer in list(self.rooms[room_id]):
+                try:
+                    await peer.send_text(payload)
+                except Exception:
+                    self.disconnect(room_id, peer)
+
+    def get_room_stats(self, room_id: str) -> Dict[str, Any]:
+        peers = len(self.rooms.get(room_id, []))
+        messages = len(self.room_history.get(room_id, []))
         return {
-            "session_id": session_id,
-            "reply": reply,
-            "tokens_generated": len(reply.split()),
-            "latency_ms": elapsed_ms,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "room_id": room_id,
+            "active_peers": peers,
+            "persisted_messages": messages,
+            "status": "ACTIVE_ROOM" if peers > 0 else "IDLE_ROOM"
         }
 
-chat_engine = RealTimeChatEngine()
+chat_manager = ResilientChatConnectionManager()

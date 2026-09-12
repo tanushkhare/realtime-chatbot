@@ -1,36 +1,51 @@
-﻿from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
-import json
-from backend.app.schemas.chat_schema import ChatMessagePayload, ChatResponse, SessionHistoryResponse
-from backend.app.services.chat_service import chat_engine
+﻿import json
+import uuid
+from datetime import datetime, timezone
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from typing import List
+from backend.app.schemas.chat_schema import ChatMessagePayload, ChatRoomStatus, ChatMessageRecord
+from backend.app.services.chat_service import chat_manager
 
-router = APIRouter(prefix="/api/v1/chat", tags=["Real-Time Chatbot"])
+router = APIRouter(prefix="/api/v1/chat", tags=["Real-Time Chat Engine"])
 
-@router.post("/message", response_model=ChatResponse)
-async def send_message(payload: ChatMessagePayload):
-    try:
-        result = await chat_engine.generate_response(payload.session_id, payload.user_id, payload.message)
-        return ChatResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/history/{session_id}", response_model=SessionHistoryResponse)
-async def get_history(session_id: str):
-    history = chat_engine.get_session_history(session_id)
-    return SessionHistoryResponse(session_id=session_id, total_messages=len(history), messages=history)
-
-@router.websocket("/ws/{session_id}")
-async def chat_websocket(websocket: WebSocket, session_id: str):
-    await websocket.accept()
+@router.websocket("/ws/{room_id}")
+async def websocket_chat_endpoint(websocket: WebSocket, room_id: str):
+    await chat_manager.connect(room_id, websocket)
     try:
         while True:
             raw_text = await websocket.receive_text()
             try:
-                data = json.loads(raw_text)
-                user_msg = data.get("message", "")
-                user_id = data.get("user_id", "anonymous_user")
-                response = await chat_engine.generate_response(session_id, user_id, user_msg)
-                await websocket.send_text(json.dumps({"status": "SUCCESS", "payload": response}))
+                frame = json.loads(raw_text)
+                record = {
+                    "message_id": f"MSG-{uuid.uuid4().hex[:8].upper()}",
+                    "room_id": room_id,
+                    "sender": frame.get("sender", "Anonymous"),
+                    "message": frame.get("message", ""),
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                await chat_manager.broadcast(room_id, websocket, record)
             except json.JSONDecodeError:
-                continue
+                await websocket.send_text(json.dumps({"error": "MALFORMED_JSON_FRAME"}))
     except WebSocketDisconnect:
-        pass
+        chat_manager.disconnect(room_id, websocket)
+
+@router.post("/message", response_model=ChatMessageRecord)
+async def post_message_http(payload: ChatMessagePayload):
+    record = {
+        "message_id": f"MSG-{uuid.uuid4().hex[:8].upper()}",
+        "room_id": payload.room_id,
+        "sender": payload.sender,
+        "message": payload.message,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    await chat_manager.broadcast(payload.room_id, None, record)
+    return ChatMessageRecord(**record)
+
+@router.get("/rooms/{room_id}", response_model=ChatRoomStatus)
+async def get_room_metrics(room_id: str):
+    return ChatRoomStatus(**chat_manager.get_room_stats(room_id))
+
+@router.get("/rooms/{room_id}/messages", response_model=List[ChatMessageRecord])
+async def get_room_messages(room_id: str):
+    history = chat_manager.room_history.get(room_id, [])
+    return [ChatMessageRecord(**m) for m in history]

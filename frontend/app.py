@@ -3,51 +3,39 @@ import requests
 
 st.set_page_config(page_title="Real-Time Chatbot", layout="wide")
 
-st.title("💬 Asynchronous Real-Time Chat Assistant")
-st.markdown("Low-latency asynchronous dialog streaming, session history persistence, and WebSocket dispatch.")
+st.title("💬 Resilient Real-Time WebSocket Messaging Hub")
+st.markdown("Non-blocking asynchronous room management, frame validation, and chat history persistence.")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    session_id = st.text_input("Session Identifier", value="session_tech_sync_01")
-    
-    # Display conversation messages
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["text"])
+    st.subheader("Transmit Chat Message")
+    room_id = st.text_input("Channel / Room Identifier", value="sre-war-room")
+    sender = st.text_input("Handle / Sender", value="Tanush Khare")
+    msg = st.text_area("Message Payload", value="Deploying microservices across all clusters. Health checks nominal.")
 
-    user_input = st.chat_input("Ask a question...")
-    if user_input:
-        st.session_state.messages.append({"role": "user", "text": user_input})
-        with st.chat_message("user"):
-            st.write(user_input)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Streaming response..."):
-                try:
-                    res = requests.post(
-                        "http://localhost:8000/api/v1/chat/message",
-                        json={"session_id": session_id, "user_id": "usr_tanush", "message": user_input},
-                        timeout=5
-                    )
-                    if res.status_code == 200:
-                        data = res.json()
-                        reply = data["reply"]
-                        st.write(reply)
-                        st.session_state.messages.append({"role": "assistant", "text": reply})
-                    else:
-                        st.error(f"Chat API Error: {res.text}")
-                except Exception:
-                    st.warning("Backend offline. Simulating local assistant reply.")
-                    reply = f"Acknowledged: '{user_input}'. Processed via local fallback response loop."
-                    st.write(reply)
-                    st.session_state.messages.append({"role": "assistant", "text": reply})
+    if st.button("Send Message via HTTP Dispatch", type="primary"):
+        payload = {"room_id": room_id, "sender": sender, "message": msg}
+        try:
+            res = requests.post("http://localhost:8000/api/v1/chat/message", json=payload, timeout=5)
+            if res.status_code == 200:
+                st.session_state["p03a_last"] = res.json()
+                st.success("Message dispatched to room broadcast!")
+            else:
+                st.error(f"Dispatch Error: {res.text}")
+        except Exception:
+            st.warning("Backend offline. Simulating local dispatch.")
+            st.session_state["p03a_last"] = {
+                "message_id": "MSG-SIM001",
+                "room_id": room_id,
+                "sender": sender,
+                "message": msg,
+                "timestamp": "2026-08-28T12:00:00Z"
+            }
 
 with col2:
-    st.subheader("Session Telemetry")
-    st.metric("Total Messages in Context", len(st.session_state.messages))
-    st.info(f"Active Session: `{session_id}`")
-    st.success("✅ Asynchronous Event Loop & Persistent History Active")
+    if "p03a_last" in st.session_state:
+        r = st.session_state["p03a_last"]
+        st.subheader(f"Dispatched Frame: {r['message_id']}")
+        st.info(f"**{r['sender']}** in `#{r['room_id']}`:\n\n> {r['message']}")
+        st.markdown(f"**Timestamp:** `{r['timestamp']}`")
