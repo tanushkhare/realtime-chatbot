@@ -1,7 +1,7 @@
 ﻿import json
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from fastapi import WebSocket
 
 class ResilientChatConnectionManager:
